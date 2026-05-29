@@ -15,10 +15,30 @@ export const Route = createFileRoute("/")({
 });
 
 const features = [
-  { icon: Search, title: "Search medicines", desc: "Find any prescription or OTC medicine in seconds." },
-  { icon: MapPin, title: "Nearby pharmacies", desc: "See real-time availability at pharmacies around you." },
-  { icon: QrCode, title: "QR authenticity", desc: "Scan the pack QR to verify the batch is genuine." },
-  { icon: BellRing, title: "Reserve & alerts", desc: "Reserve stock before you arrive and get low-stock alerts." },
+  {
+    icon: Search,
+    title: "Search medicines",
+    desc: "Find any prescription or OTC medicine in seconds.",
+    link: "/search",
+  },
+  {
+    icon: MapPin,
+    title: "Nearby pharmacies",
+    desc: "See real-time availability at pharmacies around you.",
+    link: "/pharmacy",
+  },
+  {
+    icon: QrCode,
+    title: "QR authenticity",
+    desc: "Scan the pack QR to verify the batch is genuine.",
+    link: "/verify",
+  },
+  {
+    icon: BellRing,
+    title: "Reserve & alerts",
+    desc: "Reserve stock before you arrive and get low-stock alerts.",
+    link: "/search",
+  },
 ];
 
 function Home() {
@@ -93,13 +113,19 @@ function Home() {
         </div>
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {features.map((f) => (
-            <Card key={f.title} className="group border bg-card p-6 transition-all hover:shadow-elegant">
+            <Link to={f.link} key={f.title}>
+            <Card className="group cursor-pointer border bg-card p-6 transition-all hover:shadow-elegant">
               <div className="mb-4 grid h-11 w-11 place-items-center rounded-lg bg-accent text-accent-foreground transition-transform group-hover:scale-110">
                 <f.icon className="h-5 w-5" />
               </div>
+          
               <h3 className="font-semibold">{f.title}</h3>
-              <p className="mt-1.5 text-sm text-muted-foreground">{f.desc}</p>
+          
+              <p className="mt-1.5 text-sm text-muted-foreground">
+                {f.desc}
+              </p>
             </Card>
+          </Link>
           ))}
         </div>
       </section>

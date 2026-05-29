@@ -28,19 +28,40 @@ function VerifyPage() {
     e.preventDefault();
     if (!code.trim()) return;
     setLoading(true);
-    const { data: batch } = await supabase
-      .from("medicine_batches")
-      .select("*, medicines(*)")
-      .eq("qr_code", code.trim())
-      .maybeSingle();
+    const { data: batch, error: batchError } = await (supabase as any)
+  .from("qr_verification")
+  .select("*")
+  .eq("qr_code", code.trim())
+  .maybeSingle();
+  console.log("BATCH DATA:", batch);
+    if (batchError) {
+      setResult({ kind: "invalid", reason: batchError.message });
+      setLoading(false);
+      return;
+    }
+
+    let batchWithMedicine: any = batch;
+    if (batch?.medicine_id) {
+      const { data: med, error: medError } = await supabase
+        .from("medicines")
+        .select("*")
+        .eq("id", batch.medicine_id)
+        .maybeSingle();
+      if (medError) {
+        setResult({ kind: "invalid", reason: medError.message });
+        setLoading(false);
+        return;
+      }
+      batchWithMedicine = { ...batch, medicines: med ?? null };
+    }
 
     let res: Result;
     if (!batch) res = { kind: "invalid", reason: "No matching batch found — likely counterfeit." };
-    else if (!batch.is_valid) res = { kind: "invalid", reason: "Batch has been flagged as invalid." };
-    else if (batch.expiry_date && new Date(batch.expiry_date) < new Date()) res = { kind: "invalid", reason: "Medicine is expired." };
-    else res = { kind: "ok", batch };
+    else if (!batchWithMedicine.is_valid) res = { kind: "invalid", reason: "Batch has been flagged as invalid." };
+    else if (batchWithMedicine.expiry_date && new Date(batchWithMedicine.expiry_date) < new Date()) res = { kind: "invalid", reason: "Medicine is expired." };
+    else res = { kind: "ok", batch: batchWithMedicine };
 
-    await supabase.from("verification_logs").insert({
+    await (supabase as any).from("verification_logs").insert({
       qr_code: code.trim(),
       user_id: user?.id ?? null,
       result: res.kind === "ok" ? "authentic" : "invalid",

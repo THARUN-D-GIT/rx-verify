@@ -39,7 +39,26 @@ function AdminDashboard() {
   });
   const batches = useQuery({
     queryKey: ["admin-batches"],
-    queryFn: async () => (await supabase.from("medicine_batches").select("*, medicines(name)").order("created_at", { ascending: false }).limit(100)).data ?? [],
+    queryFn: async () => {
+      const { data: batchRows, error: batchError } = await supabase
+        .from("medicine_batches")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(100);
+      if (batchError) throw batchError;
+
+      const medicineIds = Array.from(new Set((batchRows ?? []).map((b: any) => b?.medicine_id).filter(Boolean))) as string[];
+      const { data: meds, error: medsError } = medicineIds.length
+        ? await supabase.from("medicines").select("id,name").in("id", medicineIds)
+        : { data: [], error: null as any };
+      if (medsError) throw medsError;
+
+      const medById = new Map<string, any>((meds ?? []).map((m: any) => [m.id, m]));
+      return (batchRows ?? []).map((b: any) => ({
+        ...b,
+        medicines: medById.get(b.medicine_id) ?? null,
+      }));
+    },
   });
   const logs = useQuery({
     queryKey: ["admin-logs"],

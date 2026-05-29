@@ -121,6 +121,54 @@ export type Database = {
         }
         Relationships: []
       }
+      inventory: {
+        Row: {
+          id: string
+          medicine_id: string
+          pharmacy_id: string
+          quantity: number
+          low_stock_threshold: number
+          price: number
+          created_at: string
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          medicine_id: string
+          pharmacy_id: string
+          quantity?: number
+          low_stock_threshold?: number
+          price?: number
+          created_at?: string
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          medicine_id?: string
+          pharmacy_id?: string
+          quantity?: number
+          price?: number
+          low_stock_threshold?: number
+          created_at?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_medicine_id_fkey"
+            columns: ["medicine_id"]
+            isOneToOne: false
+            referencedRelation: "medicines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_pharmacy_id_fkey"
+            columns: ["pharmacy_id"]
+            isOneToOne: false
+            referencedRelation: "pharmacies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pharmacy_inventory: {
         Row: {
           id: string

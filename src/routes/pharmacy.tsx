@@ -44,13 +44,24 @@ function PharmacyDashboard() {
     queryKey: ["pharm-inv", selectedPharmacy],
     enabled: !!selectedPharmacy,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("pharmacy_inventory")
-        .select("*, medicines(*)")
+      const { data: invRows, error: invError } = await supabase
+        .from("inventory")
+        .select("*")
         .eq("pharmacy_id", selectedPharmacy!)
         .order("updated_at", { ascending: false });
-      if (error) throw error;
-      return data;
+      if (invError) throw invError;
+
+      const medicineIds = Array.from(new Set((invRows ?? []).map((r: any) => r?.medicine_id).filter(Boolean))) as string[];
+      const { data: meds, error: medsError } = medicineIds.length
+        ? await supabase.from("medicines").select("*").in("id", medicineIds)
+        : { data: [], error: null as any };
+      if (medsError) throw medsError;
+
+      const medById = new Map<string, any>((meds ?? []).map((m: any) => [m.id, m]));
+      return (invRows ?? []).map((row: any) => ({
+        ...row,
+        medicines: medById.get(row.medicine_id) ?? null,
+      }));
     },
   });
 
@@ -58,13 +69,31 @@ function PharmacyDashboard() {
     queryKey: ["pharm-res", selectedPharmacy],
     enabled: !!selectedPharmacy,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data: resRows, error: resError } = await supabase
         .from("reservations")
-        .select("*, medicines(name), profiles(full_name, email)")
+        .select("*")
         .eq("pharmacy_id", selectedPharmacy!)
         .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data;
+      if (resError) throw resError;
+
+      const medicineIds = Array.from(new Set((resRows ?? []).map((r: any) => r?.medicine_id).filter(Boolean))) as string[];
+      const userIds = Array.from(new Set((resRows ?? []).map((r: any) => r?.user_id).filter(Boolean))) as string[];
+
+      const [{ data: meds, error: medsError }, { data: profs, error: profError }] = await Promise.all([
+        medicineIds.length ? supabase.from("medicines").select("id,name").in("id", medicineIds) : Promise.resolve({ data: [], error: null as any }),
+        userIds.length ? supabase.from("profiles").select("id,full_name,email").in("id", userIds) : Promise.resolve({ data: [], error: null as any }),
+      ]);
+      if (medsError) throw medsError;
+      if (profError) throw profError;
+
+      const medById = new Map<string, any>((meds ?? []).map((m: any) => [m.id, m]));
+      const profById = new Map<string, any>((profs ?? []).map((p: any) => [p.id, p]));
+
+      return (resRows ?? []).map((r: any) => ({
+        ...r,
+        medicines: medById.get(r.medicine_id) ?? null,
+        profiles: profById.get(r.user_id) ?? null,
+      }));
     },
   });
 
@@ -264,7 +293,7 @@ function AddInventoryDialog({ pharmacyId, medicines, onSaved }: { pharmacyId: st
 
   const submit = async () => {
     if (!medId) return toast.error("Pick a medicine");
-    const { error } = await supabase.from("pharmacy_inventory").upsert({
+    const { error } = await supabase.from("inventory").upsert({
       pharmacy_id: pharmacyId,
       medicine_id: medId,
       quantity: Number(qty),
