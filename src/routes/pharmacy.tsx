@@ -45,7 +45,7 @@ function PharmacyDashboard() {
     enabled: !!selectedPharmacy,
     queryFn: async () => {
       const { data: invRows, error: invError } = await supabase
-        .from("inventory")
+        .from("pharmacy_inventory")
         .select("*")
         .eq("pharmacy_id", selectedPharmacy!)
         .order("updated_at", { ascending: false });
@@ -293,7 +293,7 @@ function AddInventoryDialog({ pharmacyId, medicines, onSaved }: { pharmacyId: st
 
   const submit = async () => {
     if (!medId) return toast.error("Pick a medicine");
-    const { error } = await supabase.from("inventory").upsert({
+    const { error } = await supabase.from("pharmacy_inventory").upsert({
       pharmacy_id: pharmacyId,
       medicine_id: medId,
       quantity: Number(qty),
