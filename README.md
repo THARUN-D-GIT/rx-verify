@@ -6,7 +6,7 @@ A full-stack medicine verification and pharmacy availability app built with Reac
 
 MediVerify brings together a public medicine lookup flow and separate pharmacy and admin workflows:
 
-- **QR batch verification:** checks a package code against registered batches and shows the medicine, batch, and expiry details.
+- **QR batch verification:** a rate-limited Supabase Edge Function checks a code against registered batches and returns only the details needed for the result.
 - **Medicine availability search:** lets people search the catalog and compare pharmacy stock and prices.
 - **Pharmacy workspace:** supports pharmacy registration, inventory updates, low-stock visibility, and reservation handling.
 - **Admin workspace:** manages the medicine catalog, registered batches, user roles, and verification activity.
