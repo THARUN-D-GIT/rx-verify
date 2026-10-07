@@ -24,7 +24,8 @@ MediVerify brings together a public medicine lookup flow and separate pharmacy a
 
 1. Install dependencies with `npm install`.
 2. Copy `.env.example` to `.env` and fill in the Supabase URL and publishable key.
-3. Start the development server with `npm run dev`.
+3. Apply the tracked Supabase migrations and deploy the `verify-medicine` Edge Function.
+4. Start the development server with `npm run dev`.
 
 Set `SUPABASE_SERVICE_ROLE_KEY` only in a trusted server environment. Never expose it in a `VITE_*` variable or commit a populated `.env` file.
 
