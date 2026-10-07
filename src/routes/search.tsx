@@ -30,34 +30,16 @@ export default function SearchPage() {
   const inventoryQuery = useQuery({
     queryKey: ["inventory", selectedMedicine?.id],
     enabled: !!selectedMedicine?.id,
-  
     queryFn: async () => {
-      if (!selectedMedicine?.id) {
-        return [];
-      }
-  
-      console.log("SELECTED MEDICINE ID:", selectedMedicine.id);
-  
+      if (!selectedMedicine?.id) return [];
       const { data, error } = await supabase
-        .from("inventory")
-        .select("*")
+        .from("pharmacy_inventory")
+        .select("*, pharmacy:pharmacies(name, city)")
         .eq("medicine_id", String(selectedMedicine.id));
-  
-      console.log("INVENTORY DATA:", data);
-      console.log("INVENTORY ERROR:", error);
-  
-      if (error) {
-        console.error(error);
-        return [];
-      }
-      console.log("🔥 NEW SEARCH PAGE RUNNING");
-console.log("SELECTED MEDICINE:", selectedMedicine);
-  
-      return data || [];
+      if (error) throw error;
+      return data ?? [];
     },
   });
-
-     
 
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-gradient-to-b from-slate-50 via-white to-slate-50 px-4 py-6 sm:px-6 lg:px-8">
