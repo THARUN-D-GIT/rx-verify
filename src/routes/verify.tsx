@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { SiteHeader } from "@/components/site-header";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/use-auth";
 
 export const Route = createFileRoute("/verify")({
   head: () => ({ meta: [{ title: "Verify medicine — MediVerify" }] }),
@@ -16,8 +15,12 @@ export const Route = createFileRoute("/verify")({
 type VerifiedBatch = {
   batch_number: string;
   expiry_date: string | null;
-  medicines: { name: string; manufacturer: string | null } | null;
+  medicine: { name: string; manufacturer: string | null } | null;
 };
+
+type VerificationResponse =
+  | { status: "verified"; batch: VerifiedBatch }
+  | { status: "invalid" | "expired" | "not_found" | "rate_limited"; message: string };
 
 type Result =
   | { kind: "ok"; batch: VerifiedBatch }
@@ -30,7 +33,6 @@ function VerifyPage() {
   const [code, setCode] = useState("");
   const [result, setResult] = useState<Result>(null);
   const [loading, setLoading] = useState(false);
-  const { user } = useAuth();
 
   const verify = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,61 +47,25 @@ function VerifyPage() {
     setResult(null);
 
     try {
-      const { data: batch, error: batchError } = await supabase
-        .from("medicine_batches")
-        .select("id, medicine_id, batch_number, qr_code, expiry_date, is_valid")
-        .eq("qr_code", normalizedCode)
-        .maybeSingle();
+      const { data, error } = await supabase.functions.invoke<VerificationResponse>(
+        "verify-medicine",
+        { body: { code: normalizedCode } },
+      );
 
-      if (batchError) {
-        setResult({ kind: "invalid", reason: UNAVAILABLE_MESSAGE });
-        return;
-      }
-
-      if (!batch) {
+      if (error || !data) {
+        const status = (error as { context?: Response } | null)?.context?.status;
         setResult({
           kind: "invalid",
-          reason: "No registered batch matches this code. Check with the manufacturer or a pharmacist before use.",
+          reason: status === 429 ? "Too many attempts. Wait a minute and try again." : UNAVAILABLE_MESSAGE,
         });
         return;
       }
 
-      const { data: medicine, error: medicineError } = await supabase
-        .from("medicines")
-        .select("name, manufacturer")
-        .eq("id", batch.medicine_id)
-        .maybeSingle();
-
-      if (medicineError) {
-        setResult({ kind: "invalid", reason: UNAVAILABLE_MESSAGE });
-        return;
+      if (data.status === "verified") {
+        setResult({ kind: "ok", batch: data.batch });
+      } else {
+        setResult({ kind: "invalid", reason: data.message });
       }
-
-      const isExpired =
-        batch.expiry_date !== null &&
-        batch.expiry_date < new Date().toISOString().slice(0, 10);
-
-      const nextResult: Result = !batch.is_valid
-        ? { kind: "invalid", reason: "This batch has been flagged as invalid. Contact the manufacturer or a pharmacist." }
-        : isExpired
-          ? { kind: "invalid", reason: "The registered batch is past its listed expiry date." }
-          : {
-              kind: "ok",
-              batch: {
-                batch_number: batch.batch_number,
-                expiry_date: batch.expiry_date,
-                medicines: medicine,
-              },
-            };
-
-      // Logging is best-effort; a log write failure must not change the verification result.
-      await supabase.from("verification_logs").insert({
-        qr_code: normalizedCode,
-        user_id: user?.id ?? null,
-        result: nextResult.kind === "ok" ? "authentic" : "invalid",
-      });
-
-      setResult(nextResult);
     } catch {
       setResult({ kind: "invalid", reason: UNAVAILABLE_MESSAGE });
     } finally {
@@ -145,8 +111,8 @@ function VerifyPage() {
                 </div>
               </div>
               <div className="mt-5 grid gap-3 text-sm sm:grid-cols-2">
-                <div className="flex items-start gap-2"><Pill className="mt-0.5 h-4 w-4 text-primary" /><div><div className="text-muted-foreground">Medicine</div><div className="font-medium">{result.batch.medicines?.name ?? "—"}</div></div></div>
-                <div className="flex items-start gap-2"><Pill className="mt-0.5 h-4 w-4 text-primary" /><div><div className="text-muted-foreground">Manufacturer</div><div className="font-medium">{result.batch.medicines?.manufacturer ?? "—"}</div></div></div>
+                <div className="flex items-start gap-2"><Pill className="mt-0.5 h-4 w-4 text-primary" /><div><div className="text-muted-foreground">Medicine</div><div className="font-medium">{result.batch.medicine?.name ?? "—"}</div></div></div>
+                <div className="flex items-start gap-2"><Pill className="mt-0.5 h-4 w-4 text-primary" /><div><div className="text-muted-foreground">Manufacturer</div><div className="font-medium">{result.batch.medicine?.manufacturer ?? "—"}</div></div></div>
                 <div className="flex items-start gap-2"><CalendarDays className="mt-0.5 h-4 w-4 text-primary" /><div><div className="text-muted-foreground">Batch</div><div className="font-medium">{result.batch.batch_number}</div></div></div>
                 <div className="flex items-start gap-2"><CalendarDays className="mt-0.5 h-4 w-4 text-primary" /><div><div className="text-muted-foreground">Expiry</div><div className="font-medium">{result.batch.expiry_date ?? "—"}</div></div></div>
               </div>
